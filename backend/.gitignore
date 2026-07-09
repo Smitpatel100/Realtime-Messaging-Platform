@@ -31,3 +31,13 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Uploaded files
+uploads/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log

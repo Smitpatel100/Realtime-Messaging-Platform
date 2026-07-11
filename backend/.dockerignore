@@ -1,0 +1,10 @@
+target/
+uploads/
+*.log
+.git/
+.gitignore
+.idea/
+*.iml
+.mvn/
+Dockerfile
+.dockerignore

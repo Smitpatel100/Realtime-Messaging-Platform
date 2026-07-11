@@ -58,7 +58,7 @@ const presenceService = {
     onPresenceCallback = null
   },
 
-  getInitialOnlineUsers: () => api.get('/api/presence/online'),
+  getInitialOnlineUsers: () => api.get('/presence/online'),
 }
 
 export default presenceService

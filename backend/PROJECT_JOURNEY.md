@@ -613,3 +613,121 @@ Interview Question:
 Why debounce search requests?
 
 Because it prevents sending a request on every keystroke, reducing server load and improving responsiveness.
+
+## DAY 22 - Notifications & Unread Messages
+
+Completed:
+
+✔ Unread Message Count
+✔ Sidebar Notification Badges
+✔ Browser Notifications
+✔ Auto Clear on Room Open
+✔ Live Notification Updates
+
+Learned:
+
+- Unread counts should be maintained per user, not globally.
+- Browser Notification API can improve user engagement.
+- WebSocket events are ideal for instantly updating notification badges.
+
+Interview Question:
+
+Why maintain unread counts separately for each user?
+
+Because different users may have read different messages, so unread status is user-specific rather than message-specific.
+
+# Day 23 – Dockerization
+
+## Objective
+Containerize the complete Real-Time Messaging Platform so the frontend, backend, and database can run consistently on any machine using Docker.
+
+---
+
+## Completed
+
+### Repository
+- Merged frontend and backend into a single repository.
+- Organized project into:
+  - backend/
+  - frontend/
+
+### Backend
+- Added Dockerfile.
+- Added .dockerignore.
+- Configured Spring Boot to receive database configuration through Docker environment variables.
+
+### Frontend
+- Added Dockerfile.
+- Added nginx.conf.
+- Added .dockerignore.
+- Configured production build using Nginx.
+
+### Docker Compose
+Created docker-compose.yml including:
+
+- MySQL
+- Spring Boot Backend
+- React Frontend
+- Docker Network
+- Persistent Volumes
+
+### Environment
+- Added .env.example.
+- Configured environment variables.
+
+### Fixes During Dockerization
+- Fixed frontend API path (/api duplication).
+- Fixed Docker networking.
+- Fixed CORS configuration.
+- Fixed WebSocket communication.
+- Verified JWT authentication works inside Docker.
+- Verified MySQL container connectivity.
+
+---
+
+## Result
+
+Application successfully runs entirely inside Docker.
+
+Services:
+
+- Frontend
+- Backend
+- MySQL
+
+All containers communicate correctly.
+
+Application accessible from:
+
+http://localhost
+
+---
+
+## Technologies Learned
+
+- Docker
+- Docker Images
+- Docker Containers
+- Docker Compose
+- Docker Networks
+- Docker Volumes
+- Multi-stage Docker Builds
+- Nginx Container
+- Environment Variables
+
+---
+
+## Skills Gained
+
+- Containerizing a Spring Boot application.
+- Containerizing a React application.
+- Running a complete full-stack application with Docker Compose.
+- Debugging Docker networking.
+- Resolving CORS issues.
+- Deployable project structure.
+
+---
+
+## Status
+
+Day 23 Completed ✅

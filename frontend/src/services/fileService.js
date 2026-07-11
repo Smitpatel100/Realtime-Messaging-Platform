@@ -4,7 +4,7 @@ const fileService = {
   uploadFile: (file, onProgress) => {
     const formData = new FormData()
     formData.append('file', file)
-    return api.post('/api/files/upload', formData, {
+    return api.post('/files/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       onUploadProgress: (event) => {
         if (onProgress && event.total) {

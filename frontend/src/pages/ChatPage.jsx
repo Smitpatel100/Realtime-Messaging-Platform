@@ -7,6 +7,7 @@ import chatService from '../services/chatService'
 import websocketService from '../services/websocketService'
 import presenceService from '../services/presenceService'
 import unreadService from '../services/unreadService'
+import roomEventService from '../services/roomEventService'
 import typingService from '../services/typingService'
 import Sidebar from '../components/chat/Sidebar'
 import ChatHeader from '../components/chat/ChatHeader'
@@ -110,10 +111,31 @@ const ChatPage = () => {
       Notification.requestPermission()
     }
 
+    roomEventService.connect((event) => {
+      if (event.type === 'PRIVATE_DELETED' || event.type === 'GROUP_DELETED') {
+        setRooms((prev) => prev.filter((r) => r.id !== event.roomId))
+        setUnreadCounts((prev) => {
+          const next = { ...prev }
+          delete next[event.roomId]
+          return next
+        })
+        if (selectedRoomRef.current?.id === event.roomId) {
+          websocketService.disconnect()
+          typingService.unsubscribe()
+          setSelectedRoom(null)
+          selectedRoomRef.current = null
+          setMessages([])
+        }
+      } else if (event.type === 'MEMBER_LEFT') {
+        chatService.getRooms().then((res) => setRooms(res.data)).catch(() => {})
+      }
+    })
+
     return () => {
       websocketService.disconnect()
       presenceService.disconnect()
       unreadService.disconnect()
+      roomEventService.disconnect()
       typingService.unsubscribe()
     }
   }, [])
@@ -121,6 +143,12 @@ const ChatPage = () => {
   const handleIncomingMessage = (message) => {
     if (!selectedRoomRef.current) return
     if (message.roomId !== selectedRoomRef.current.id) return
+
+    if (message.deleted) {
+      setMessages((prev) => prev.filter((m) => m.id !== message.id))
+      setSearchResults((prev) => prev.filter((m) => m.id !== message.id))
+      return
+    }
 
     setMessages((prev) => {
       const exists = prev.some((m) => m.id === message.id)
@@ -207,6 +235,7 @@ const ChatPage = () => {
     websocketService.disconnect()
     presenceService.disconnect()
     unreadService.disconnect()
+    roomEventService.disconnect()
     logout()
     navigate('/login')
   }
@@ -240,6 +269,60 @@ const ChatPage = () => {
       .catch(() => {
         setRooms((prev) => [...prev, newRoom])
         handleSelectRoom(newRoom)
+      })
+  }
+
+  const handleDeleteMessage = (messageId) => {
+    chatService.deleteMessage(messageId)
+      .then(() => {
+        setMessages((prev) => prev.filter((m) => m.id !== messageId))
+        setSearchResults((prev) => prev.filter((m) => m.id !== messageId))
+      })
+      .catch((err) => {
+        console.error('Failed to delete message', err)
+      })
+  }
+
+  const clearSelectedRoomIfMatches = (roomId) => {
+    if (selectedRoomRef.current?.id === roomId) {
+      websocketService.disconnect()
+      typingService.unsubscribe()
+      setSelectedRoom(null)
+      selectedRoomRef.current = null
+      setMessages([])
+    }
+  }
+
+  const handleDeletePrivateChat = (roomId) => {
+    chatService.deletePrivateChat(roomId)
+      .then(() => {
+        setRooms((prev) => prev.filter((r) => r.id !== roomId))
+        clearSelectedRoomIfMatches(roomId)
+      })
+      .catch((err) => {
+        console.error('Failed to delete chat', err)
+      })
+  }
+
+  const handleLeaveGroup = (roomId) => {
+    chatService.leaveGroup(roomId)
+      .then(() => {
+        setRooms((prev) => prev.filter((r) => r.id !== roomId))
+        clearSelectedRoomIfMatches(roomId)
+      })
+      .catch((err) => {
+        console.error('Failed to leave group', err)
+      })
+  }
+
+  const handleDeleteGroup = (roomId) => {
+    chatService.deleteGroup(roomId)
+      .then(() => {
+        setRooms((prev) => prev.filter((r) => r.id !== roomId))
+        clearSelectedRoomIfMatches(roomId)
+      })
+      .catch((err) => {
+        console.error('Failed to delete group', err)
       })
   }
 
@@ -280,6 +363,9 @@ const ChatPage = () => {
               onOpenProfile={(email) => setViewProfileEmail(email)}
               onSearch={handleSearch}
               searching={isSearching}
+              onDeletePrivateChat={handleDeletePrivateChat}
+              onLeaveGroup={handleLeaveGroup}
+              onDeleteGroup={handleDeleteGroup}
             />
             <MessageList
               messages={searchKeyword ? searchResults : messages}
@@ -287,6 +373,7 @@ const ChatPage = () => {
               loading={searchKeyword ? isSearching : messagesLoading}
               searchActive={!!searchKeyword}
               searchKeyword={searchKeyword}
+              onDeleteMessage={handleDeleteMessage}
             />
             {typingText() && (
               <div className="typing-indicator">

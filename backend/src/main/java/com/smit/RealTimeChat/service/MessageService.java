@@ -208,6 +208,21 @@ public class MessageService {
             }
         }
     }
+    @Transactional
+    public void deleteMessage(Long messageId, String currentUserEmail) {
+        Message message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new RuntimeException("Message not found with id: " + messageId));
+
+        if (!message.getSender().getEmail().equals(currentUserEmail)) {
+            throw new RuntimeException("Only the sender can delete this message");
+        }
+
+        Long roomId = message.getChatRoom().getId();
+        messageRepository.delete(message);
+
+        ChatMessage deletedEvent = ChatMessage.deletedEvent(messageId, roomId, currentUserEmail);
+        messagingTemplate.convertAndSend("/topic/chat/" + roomId, deletedEvent);
+    }
     private MessageResponse mapToResponse(Message message) {
         return new MessageResponse(
                 message.getId(),

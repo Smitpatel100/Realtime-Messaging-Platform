@@ -2,13 +2,13 @@ import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 
 let stompClient = null
-let unreadSubscription = null
-let onUpdateCallback = null
+let roomEventSubscription = null
+let onEventCallback = null
 
-const unreadService = {
+const roomEventService = {
 
-  connect(onUnreadUpdate) {
-    onUpdateCallback = onUnreadUpdate
+  connect(onRoomEvent) {
+    onEventCallback = onRoomEvent
 
     const token = localStorage.getItem('token')
 
@@ -22,23 +22,23 @@ const unreadService = {
       reconnectDelay: 5000,
 
       onConnect: () => {
-        unreadSubscription = stompClient.subscribe(
-          '/user/queue/unread-count',
+        roomEventSubscription = stompClient.subscribe(
+          '/topic/room-events',
           (frame) => {
             try {
-              const update = JSON.parse(frame.body)
-              if (onUpdateCallback) {
-                onUpdateCallback(update)
+              const event = JSON.parse(frame.body)
+              if (onEventCallback) {
+                onEventCallback(event)
               }
             } catch (e) {
-              console.error('Failed to parse unread-count update', e)
+              console.error('Failed to parse room event', e)
             }
           }
         )
       },
 
       onStompError: (frame) => {
-        console.error('Unread-count STOMP error', frame)
+        console.error('Room-event STOMP error', frame)
       },
     })
 
@@ -46,16 +46,16 @@ const unreadService = {
   },
 
   disconnect() {
-    if (unreadSubscription) {
-      unreadSubscription.unsubscribe()
-      unreadSubscription = null
+    if (roomEventSubscription) {
+      roomEventSubscription.unsubscribe()
+      roomEventSubscription = null
     }
     if (stompClient) {
       stompClient.deactivate()
       stompClient = null
     }
-    onUpdateCallback = null
+    onEventCallback = null
   },
 }
 
-export default unreadService
+export default roomEventService

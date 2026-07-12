@@ -1,3 +1,6 @@
+import { useState } from 'react'
+import ConfirmDialog from './ConfirmDialog'
+
 const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 const renderHighlightedText = (text, keyword) => {
@@ -16,7 +19,9 @@ const renderHighlightedText = (text, keyword) => {
   )
 }
 
-const MessageBubble = ({ message, currentUserEmail, highlightKeyword }) => {
+const MessageBubble = ({ message, currentUserEmail, highlightKeyword, onDeleteMessage }) => {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const isOwn = message.senderEmail === currentUserEmail
 
   const formatTime = (timestamp) => {
@@ -59,6 +64,12 @@ const MessageBubble = ({ message, currentUserEmail, highlightKeyword }) => {
     )
   }
 
+  const handleConfirmDelete = () => {
+    setConfirmOpen(false)
+    setMenuOpen(false)
+    if (onDeleteMessage) onDeleteMessage(message.id)
+  }
+
   const isImageAttachment = message.fileType?.startsWith('image/')
   const hasAttachment = !!message.fileUrl
 
@@ -68,31 +79,61 @@ const MessageBubble = ({ message, currentUserEmail, highlightKeyword }) => {
         <div className="message-sender">{message.senderUsername || message.senderEmail}</div>
       )}
 
-      <div className="message-bubble">
-        {hasAttachment && isImageAttachment && (
-          <a href={message.fileUrl} target="_blank" rel="noopener noreferrer">
-            <img
-              src={message.fileUrl}
-              alt={message.fileName || 'attachment'}
-              className="message-attachment-image"
-            />
-          </a>
-        )}
+      <div className="message-bubble-row">
+        <div className="message-bubble">
+          {hasAttachment && isImageAttachment && (
+            <a href={message.fileUrl} target="_blank" rel="noopener noreferrer">
+              <img
+                src={message.fileUrl}
+                alt={message.fileName || 'attachment'}
+                className="message-attachment-image"
+              />
+            </a>
+          )}
 
-        {hasAttachment && !isImageAttachment && (
-          <a
-            href={message.fileUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="message-attachment-file"
-          >
-            📄 <span className="message-attachment-filename">{message.fileName}</span>
-          </a>
-        )}
+          {hasAttachment && !isImageAttachment && (
+            <a
+              href={message.fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="message-attachment-file"
+            >
+              📄 <span className="message-attachment-filename">{message.fileName}</span>
+            </a>
+          )}
 
-        {message.content && (
-          <div className={hasAttachment ? 'message-attachment-caption' : ''}>
-            {highlightKeyword ? renderHighlightedText(message.content, highlightKeyword) : message.content}
+          {message.content && (
+            <div className={hasAttachment ? 'message-attachment-caption' : ''}>
+              {highlightKeyword ? renderHighlightedText(message.content, highlightKeyword) : message.content}
+            </div>
+          )}
+        </div>
+
+        {isOwn && (
+          <div className="message-menu-wrapper">
+            <button
+              className="message-menu-btn"
+              onClick={() => setMenuOpen((prev) => !prev)}
+              title="Message options"
+            >
+              ⋮
+            </button>
+            {menuOpen && (
+              <>
+                <div className="message-menu-backdrop" onClick={() => setMenuOpen(false)} />
+                <div className="message-menu-dropdown">
+                  <button
+                    className="message-menu-item danger"
+                    onClick={() => {
+                      setMenuOpen(false)
+                      setConfirmOpen(true)
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -101,6 +142,17 @@ const MessageBubble = ({ message, currentUserEmail, highlightKeyword }) => {
         {formatTime(message.createdAt)}
         {renderTicks()}
       </div>
+
+      {confirmOpen && (
+        <ConfirmDialog
+          title="Delete message?"
+          message="This message will be deleted for everyone in this chat. This can't be undone."
+          confirmLabel="Delete"
+          danger
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setConfirmOpen(false)}
+        />
+      )}
     </div>
   )
 }

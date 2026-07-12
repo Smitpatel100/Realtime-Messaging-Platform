@@ -17,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/chat-rooms")
@@ -83,5 +84,44 @@ public class ChatRoomController {
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(counts);
+    }
+    @DeleteMapping("/private/{roomId}")
+    public ResponseEntity<?> deletePrivateChat(
+            @PathVariable Long roomId,
+            Authentication authentication
+    ) {
+        try {
+            String currentUserEmail = authentication.getName();
+            chatRoomService.deletePrivateChat(roomId, currentUserEmail);
+            return ResponseEntity.ok(Map.of("message", "Chat deleted"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", e.getMessage()));
+        }
+    }
+    @DeleteMapping("/{roomId}/leave")
+    public ResponseEntity<?> leaveGroup(
+            @PathVariable Long roomId,
+            Authentication authentication
+    ) {
+        try {
+            String currentUserEmail = authentication.getName();
+            chatRoomService.leaveGroup(roomId, currentUserEmail);
+            return ResponseEntity.ok(Map.of("message", "Left group"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", e.getMessage()));
+        }
+    }
+    @DeleteMapping("/group/{roomId}")
+    public ResponseEntity<?> deleteGroup(
+            @PathVariable Long roomId,
+            Authentication authentication
+    ) {
+        try {
+            String currentUserEmail = authentication.getName();
+            chatRoomService.deleteGroup(roomId, currentUserEmail);
+            return ResponseEntity.ok(Map.of("message", "Group deleted"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", e.getMessage()));
+        }
     }
 }

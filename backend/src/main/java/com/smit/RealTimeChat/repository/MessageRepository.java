@@ -9,4 +9,5 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     List<Message> findByChatRoomAndDeliveredFalseAndSenderEmailNot(ChatRoom chatRoom, String senderEmail);
     List<Message> findByChatRoomAndContentContainingIgnoreCaseOrderByCreatedAtAsc(ChatRoom chatRoom, String keyword);
     long countByChatRoomAndSeenFalseAndSenderEmailNot(ChatRoom chatRoom, String senderEmail);
+    long deleteByChatRoom(ChatRoom chatRoom);
 }

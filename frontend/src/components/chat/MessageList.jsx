@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import MessageBubble from './MessageBubble'
 
-const MessageList = ({ messages, currentUserEmail, loading, searchActive, searchKeyword }) => {
+const MessageList = ({ messages, currentUserEmail, loading, searchActive, searchKeyword, onDeleteMessage }) => {
   const bottomRef = useRef(null)
 
   useEffect(() => {
@@ -32,6 +32,7 @@ const MessageList = ({ messages, currentUserEmail, loading, searchActive, search
           message={msg}
           currentUserEmail={currentUserEmail}
           highlightKeyword={searchActive ? searchKeyword : ''}
+          onDeleteMessage={onDeleteMessage}
         />
       ))}
       {!searchActive && <div ref={bottomRef} />}

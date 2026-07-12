@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
 @RestController
 @RequestMapping("/api/messages")
 public class MessageController {
@@ -61,5 +62,18 @@ public class MessageController {
         String currentUserEmail = authentication.getName();
         List<MessageResponse> results = messageService.searchMessages(roomId, currentUserEmail, keyword);
         return ResponseEntity.ok(results);
+    }
+    @DeleteMapping("/{messageId}")
+    public ResponseEntity<?> deleteMessage(
+            @PathVariable Long messageId,
+            Authentication authentication
+    ) {
+        try {
+            String currentUserEmail = authentication.getName();
+            messageService.deleteMessage(messageId, currentUserEmail);
+            return ResponseEntity.ok(Map.of("message", "Message deleted"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", e.getMessage()));
+        }
     }
 }

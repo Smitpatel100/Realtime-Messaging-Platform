@@ -7,7 +7,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class RealTimeChatBackendApplication {
 
 	public static void main(String[] args) {
-		//start
 		SpringApplication.run(RealTimeChatBackendApplication.class, args);
 	}
 }

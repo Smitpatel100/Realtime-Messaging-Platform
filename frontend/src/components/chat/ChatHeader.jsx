@@ -1,9 +1,15 @@
 import { useState, useRef, useEffect } from 'react'
+import ConfirmDialog from './ConfirmDialog'
 
 const initialSearchState = { isOpen: false, value: '' }
 
-const ChatHeader = ({ room, onlineEmails, currentUserEmail, onOpenProfile, onSearch, searching }) => {
+const ChatHeader = ({
+  room, onlineEmails, currentUserEmail, onOpenProfile, onSearch, searching,
+  onDeletePrivateChat, onLeaveGroup, onDeleteGroup,
+}) => {
   const [searchState, setSearchState] = useState(initialSearchState)
+  const [roomMenuOpen, setRoomMenuOpen] = useState(false)
+  const [confirmAction, setConfirmAction] = useState(null)
   const debounceRef = useRef(null)
   const inputRef = useRef(null)
 
@@ -29,6 +35,42 @@ const ChatHeader = ({ room, onlineEmails, currentUserEmail, onOpenProfile, onSea
   const online = isOnline()
   const otherEmail = getOtherEmail()
   const clickable = room.type === 'PRIVATE' && !!otherEmail
+  const isAdmin = room.type === 'GROUP' && room.createdByEmail === currentUserEmail
+
+  const handleRoomMenuClick = (e) => {
+    e.stopPropagation()
+    setRoomMenuOpen((prev) => !prev)
+  }
+
+  const requestConfirm = (action) => {
+    setRoomMenuOpen(false)
+    setConfirmAction(action)
+  }
+
+  const runConfirmedAction = () => {
+    if (confirmAction === 'delete-private' && onDeletePrivateChat) onDeletePrivateChat(room.id)
+    if (confirmAction === 'leave-group' && onLeaveGroup) onLeaveGroup(room.id)
+    if (confirmAction === 'delete-group' && onDeleteGroup) onDeleteGroup(room.id)
+    setConfirmAction(null)
+  }
+
+  const confirmDialogProps = {
+    'delete-private': {
+      title: 'Delete this chat?',
+      message: 'This will permanently delete the chat and all its messages for both participants.',
+      confirmLabel: 'Delete',
+    },
+    'leave-group': {
+      title: 'Leave this group?',
+      message: 'You will no longer receive messages from this group unless someone adds you back.',
+      confirmLabel: 'Leave',
+    },
+    'delete-group': {
+      title: 'Delete this group?',
+      message: 'This will permanently delete the group and all its messages for every member.',
+      confirmLabel: 'Delete',
+    },
+  }
 
   const handleHeaderClick = () => {
     if (clickable && onOpenProfile) {
@@ -124,7 +166,59 @@ const ChatHeader = ({ room, onlineEmails, currentUserEmail, onOpenProfile, onSea
             <path d="M20 20l-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </svg>
         </button>
+
+        <div className="room-menu-wrapper">
+          <button
+            className={`room-menu-toggle-btn ${roomMenuOpen ? 'active' : ''}`}
+            onClick={handleRoomMenuClick}
+            title="Chat options"
+          >
+            ⋮
+          </button>
+          {roomMenuOpen && (
+            <>
+              <div className="room-menu-backdrop" onClick={(e) => { e.stopPropagation(); setRoomMenuOpen(false) }} />
+              <div className="room-menu-dropdown" onClick={(e) => e.stopPropagation()}>
+                {room.type === 'PRIVATE' && (
+                  <button
+                    className="room-menu-item danger"
+                    onClick={() => requestConfirm('delete-private')}
+                  >
+                    Delete Chat
+                  </button>
+                )}
+                {room.type === 'GROUP' && (
+                  <button
+                    className="room-menu-item danger"
+                    onClick={() => requestConfirm('leave-group')}
+                  >
+                    Leave Group
+                  </button>
+                )}
+                {room.type === 'GROUP' && isAdmin && (
+                  <button
+                    className="room-menu-item danger"
+                    onClick={() => requestConfirm('delete-group')}
+                  >
+                    Delete Group
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
       </div>
+
+      {confirmAction && (
+        <ConfirmDialog
+          title={confirmDialogProps[confirmAction].title}
+          message={confirmDialogProps[confirmAction].message}
+          confirmLabel={confirmDialogProps[confirmAction].confirmLabel}
+          danger
+          onConfirm={runConfirmedAction}
+          onCancel={() => setConfirmAction(null)}
+        />
+      )}
     </div>
   )
 }

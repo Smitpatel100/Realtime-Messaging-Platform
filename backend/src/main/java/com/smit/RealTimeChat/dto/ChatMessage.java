@@ -17,6 +17,7 @@ public class ChatMessage {
     private String fileName;
     private String fileUrl;
     private String fileType;
+    private boolean deleted;
 
     public ChatMessage() {
     }
@@ -38,6 +39,15 @@ public class ChatMessage {
         this.fileName = fileName;
         this.fileUrl = fileUrl;
         this.fileType = fileType;
+    }
+
+    public static ChatMessage deletedEvent(Long id, Long roomId, String senderEmail) {
+        ChatMessage event = new ChatMessage();
+        event.setId(id);
+        event.setRoomId(roomId);
+        event.setSenderEmail(senderEmail);
+        event.setDeleted(true);
+        return event;
     }
 
     public Long getId() {
@@ -142,5 +152,13 @@ public class ChatMessage {
 
     public void setFileType(String fileType) {
         this.fileType = fileType;
+    }
+
+    public boolean isDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(boolean deleted) {
+        this.deleted = deleted;
     }
 }

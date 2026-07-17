@@ -227,3 +227,70 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* Added for delete */
+
+.cc-email-search-row {
+  display: flex;
+  gap: 8px;
+}
+
+.cc-email-search-row .cc-group-name-input {
+  flex: 1;
+}
+
+.cc-search-btn {
+  padding: 0 16px;
+  background: linear-gradient(135deg, #7c6ff7, #5a52d5);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cc-search-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cc-not-found {
+  padding: 10px 12px;
+  background: rgba(233,69,96,0.1);
+  border: 1px solid rgba(233,69,96,0.3);
+  border-radius: 8px;
+  color: #e94560;
+  font-size: 13px;
+}
+
+.cc-user-avatar-img-wrapper {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.cc-user-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cc-remove-member-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.4);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.cc-remove-member-btn:hover {
+  background: rgba(233,69,96,0.15);
+  color: #e94560;
+}

@@ -76,4 +76,17 @@ public class MessageController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", e.getMessage()));
         }
     }
+    @DeleteMapping("/{messageId}/for-me")
+    public ResponseEntity<?> deleteMessageForMe(
+            @PathVariable Long messageId,
+            Authentication authentication
+    ) {
+        try {
+            String currentUserEmail = authentication.getName();
+            messageService.deleteMessageForMe(messageId, currentUserEmail);
+            return ResponseEntity.ok(Map.of("message", "Message removed for you"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", e.getMessage()));
+        }
+    }
 }

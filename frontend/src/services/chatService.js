@@ -12,9 +12,12 @@ const chatService = {
     api.get(`/messages/rooms/${roomId}/search`, { params: { keyword } }),
   getUnreadCounts: () => api.get('/chat-rooms/unread-counts'),
   deleteMessage: (messageId) => api.delete(`/messages/${messageId}`),
+  deleteMessageForMe: (messageId) => api.delete(`/messages/${messageId}/for-me`),
   deletePrivateChat: (roomId) => api.delete(`/chat-rooms/private/${roomId}`),
   leaveGroup: (roomId) => api.delete(`/chat-rooms/${roomId}/leave`),
   deleteGroup: (roomId) => api.delete(`/chat-rooms/group/${roomId}`),
+  clearChat: (roomId) => api.delete(`/chat-rooms/${roomId}/clear`),
+  lookupUserByEmail: (email) => api.get(`/users/email/${encodeURIComponent(email)}`),
 }
 
 export default chatService

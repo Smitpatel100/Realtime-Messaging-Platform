@@ -272,7 +272,7 @@ const ChatPage = () => {
       })
   }
 
-  const handleDeleteMessage = (messageId) => {
+  const handleDeleteMessageForEveryone = (messageId) => {
     chatService.deleteMessage(messageId)
       .then(() => {
         setMessages((prev) => prev.filter((m) => m.id !== messageId))
@@ -280,6 +280,30 @@ const ChatPage = () => {
       })
       .catch((err) => {
         console.error('Failed to delete message', err)
+      })
+  }
+
+  const handleDeleteMessageForMe = (messageId) => {
+    chatService.deleteMessageForMe(messageId)
+      .then(() => {
+        setMessages((prev) => prev.filter((m) => m.id !== messageId))
+        setSearchResults((prev) => prev.filter((m) => m.id !== messageId))
+      })
+      .catch((err) => {
+        console.error('Failed to delete message for me', err)
+      })
+  }
+
+  const handleClearChat = (roomId) => {
+    chatService.clearChat(roomId)
+      .then(() => {
+        if (selectedRoomRef.current?.id === roomId) {
+          setMessages([])
+          setSearchResults([])
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to clear chat', err)
       })
   }
 
@@ -366,6 +390,7 @@ const ChatPage = () => {
               onDeletePrivateChat={handleDeletePrivateChat}
               onLeaveGroup={handleLeaveGroup}
               onDeleteGroup={handleDeleteGroup}
+              onClearChat={handleClearChat}
             />
             <MessageList
               messages={searchKeyword ? searchResults : messages}
@@ -373,7 +398,8 @@ const ChatPage = () => {
               loading={searchKeyword ? isSearching : messagesLoading}
               searchActive={!!searchKeyword}
               searchKeyword={searchKeyword}
-              onDeleteMessage={handleDeleteMessage}
+              onDeleteForMe={handleDeleteMessageForMe}
+              onDeleteForEveryone={handleDeleteMessageForEveryone}
             />
             {typingText() && (
               <div className="typing-indicator">

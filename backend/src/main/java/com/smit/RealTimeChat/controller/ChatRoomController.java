@@ -11,6 +11,7 @@ import com.smit.RealTimeChat.repository.ChatRoomRepository;
 import com.smit.RealTimeChat.repository.MessageRepository;
 import com.smit.RealTimeChat.repository.UserRepository;
 import com.smit.RealTimeChat.service.ChatRoomService;
+import com.smit.RealTimeChat.service.MessageService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,16 +27,19 @@ public class ChatRoomController {
     private final ChatRoomRepository chatRoomRepository;
     private final UserRepository userRepository;
     private final MessageRepository messageRepository;
+    private final MessageService messageService;
     public ChatRoomController(
             ChatRoomService chatRoomService,
             ChatRoomRepository chatRoomRepository,
             UserRepository userRepository,
-            MessageRepository messageRepository
+            MessageRepository messageRepository,
+            MessageService messageService
     ) {
         this.chatRoomService = chatRoomService;
         this.chatRoomRepository = chatRoomRepository;
         this.userRepository = userRepository;
         this.messageRepository = messageRepository;
+        this.messageService = messageService;
     }
     @PostMapping("/private")
     public ResponseEntity<ChatRoomResponse> createPrivateChat(
@@ -120,6 +124,19 @@ public class ChatRoomController {
             String currentUserEmail = authentication.getName();
             chatRoomService.deleteGroup(roomId, currentUserEmail);
             return ResponseEntity.ok(Map.of("message", "Group deleted"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", e.getMessage()));
+        }
+    }
+    @DeleteMapping("/{roomId}/clear")
+    public ResponseEntity<?> clearChat(
+            @PathVariable Long roomId,
+            Authentication authentication
+    ) {
+        try {
+            String currentUserEmail = authentication.getName();
+            messageService.clearChat(roomId, currentUserEmail);
+            return ResponseEntity.ok(Map.of("message", "Chat cleared"));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", e.getMessage()));
         }

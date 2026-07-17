@@ -1,108 +1,153 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import chatService from '../../services/chatService'
 import './createChatModal.css'
 
 const initialFormState = {
   activeTab: 'private',
-  selectedMembers: new Set(),
-  groupName: '',
   error: '',
 }
 
 const CreateChatModal = ({ onClose, onRoomCreated }) => {
   const [formState, setFormState] = useState(initialFormState)
-  const [users, setUsers] = useState([])
-  const [loadingUsers, setLoadingUsers] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
-  const { activeTab, selectedMembers, groupName, error } = formState
+  // Private tab state
+  const [privateEmail, setPrivateEmail] = useState('')
+  const [privateLookupResult, setPrivateLookupResult] = useState(null)
+  const [privateLookingUp, setPrivateLookingUp] = useState(false)
+  const [privateNotFound, setPrivateNotFound] = useState(false)
 
-  useEffect(() => {
-    let cancelled = false
+  // Group tab state
+  const [groupName, setGroupName] = useState('')
+  const [groupEmailInput, setGroupEmailInput] = useState('')
+  const [groupMembers, setGroupMembers] = useState([])
+  const [groupLookingUp, setGroupLookingUp] = useState(false)
 
-    chatService.getAllUsers()
-      .then((res) => {
-        if (!cancelled) setUsers(res.data)
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setFormState((prev) => ({ ...prev, error: 'Failed to load users' }))
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingUsers(false)
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const { activeTab, error } = formState
 
   const setActiveTab = (tab) => {
     setFormState((prev) => ({ ...prev, activeTab: tab, error: '' }))
   }
 
-  const handlePrivateSelect = (user) => {
-    if (submitting) return
-    setSubmitting(true)
-    setFormState((prev) => ({ ...prev, error: '' }))
+  const setError = (message) => {
+    setFormState((prev) => ({ ...prev, error: message }))
+  }
 
-    chatService.createPrivateChat(user.email)
+  const handlePrivateEmailSearch = () => {
+    const trimmed = privateEmail.trim()
+    if (!trimmed) return
+
+    setPrivateLookingUp(true)
+    setPrivateLookupResult(null)
+    setPrivateNotFound(false)
+    setError('')
+
+    chatService.lookupUserByEmail(trimmed)
+      .then((res) => {
+        setPrivateLookupResult(res.data)
+      })
+      .catch(() => {
+        setPrivateNotFound(true)
+      })
+      .finally(() => setPrivateLookingUp(false))
+  }
+
+  const handlePrivateEmailKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handlePrivateEmailSearch()
+    }
+  }
+
+  const handleStartPrivateChat = () => {
+    if (submitting || !privateLookupResult) return
+    setSubmitting(true)
+    setError('')
+
+    chatService.createPrivateChat(privateLookupResult.email)
       .then((res) => {
         onRoomCreated(res.data)
       })
       .catch((err) => {
-        setFormState((prev) => ({
-          ...prev,
-          error: err?.response?.data?.message || 'Failed to create private chat',
-        }))
+        setError(err?.response?.data?.message || 'Failed to create private chat')
       })
       .finally(() => setSubmitting(false))
   }
 
-  const toggleMember = (email) => {
-    setFormState((prev) => {
-      const next = new Set(prev.selectedMembers)
-      if (next.has(email)) {
-        next.delete(email)
-      } else {
-        next.add(email)
-      }
-      return { ...prev, selectedMembers: next }
-    })
+  const handleAddGroupMember = () => {
+    const trimmed = groupEmailInput.trim()
+    if (!trimmed) return
+
+    if (groupMembers.some((m) => m.email.toLowerCase() === trimmed.toLowerCase())) {
+      setError('That member has already been added')
+      return
+    }
+
+    setGroupLookingUp(true)
+    setError('')
+
+    chatService.lookupUserByEmail(trimmed)
+      .then((res) => {
+        setGroupMembers((prev) => [...prev, res.data])
+        setGroupEmailInput('')
+      })
+      .catch(() => {
+        setError('User not found.')
+      })
+      .finally(() => setGroupLookingUp(false))
   }
 
-  const handleGroupNameChange = (value) => {
-    setFormState((prev) => ({ ...prev, groupName: value }))
+  const handleGroupEmailKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleAddGroupMember()
+    }
+  }
+
+  const removeGroupMember = (email) => {
+    setGroupMembers((prev) => prev.filter((m) => m.email !== email))
   }
 
   const handleCreateGroup = () => {
     if (submitting) return
 
     if (!groupName.trim()) {
-      setFormState((prev) => ({ ...prev, error: 'Group name is required' }))
+      setError('Group name is required')
       return
     }
-    if (selectedMembers.size === 0) {
-      setFormState((prev) => ({ ...prev, error: 'Select at least one member' }))
+    if (groupMembers.length === 0) {
+      setError('Add at least one member')
       return
     }
 
     setSubmitting(true)
-    setFormState((prev) => ({ ...prev, error: '' }))
+    setError('')
 
-    chatService.createGroupChat(groupName.trim(), Array.from(selectedMembers))
+    chatService.createGroupChat(groupName.trim(), groupMembers.map((m) => m.email))
       .then((res) => {
         onRoomCreated(res.data)
       })
       .catch((err) => {
-        setFormState((prev) => ({
-          ...prev,
-          error: err?.response?.data?.message || 'Failed to create group chat',
-        }))
+        setError(err?.response?.data?.message || 'Failed to create group chat')
       })
       .finally(() => setSubmitting(false))
   }
+
+  const renderUserPreview = (user) => (
+    <div className="cc-user-item">
+      <div className="cc-user-avatar-img-wrapper">
+        {user.profileImage ? (
+          <img src={user.profileImage} alt={user.username} className="cc-user-avatar-img" />
+        ) : (
+          <div className="cc-user-avatar">{user.username?.slice(0, 2).toUpperCase() || '??'}</div>
+        )}
+      </div>
+      <div className="cc-user-info">
+        <div className="cc-user-name">{user.username}</div>
+        <div className="cc-user-email">{user.email}</div>
+      </div>
+    </div>
+  )
 
   return (
     <div className="cc-overlay" onClick={onClose}>
@@ -133,28 +178,42 @@ const CreateChatModal = ({ onClose, onRoomCreated }) => {
 
         {activeTab === 'private' && (
           <div className="cc-body">
-            {loadingUsers ? (
-              <div className="cc-loading">Loading users...</div>
-            ) : users.length === 0 ? (
-              <div className="cc-empty">No other users found</div>
-            ) : (
-              <div className="cc-user-list">
-                {users.map((user) => (
-                  <div
-                    key={user.id}
-                    className={`cc-user-item ${submitting ? 'disabled' : ''}`}
-                    onClick={() => handlePrivateSelect(user)}
-                  >
-                    <div className="cc-user-avatar">
-                      {user.username?.slice(0, 2).toUpperCase() || '??'}
-                    </div>
-                    <div className="cc-user-info">
-                      <div className="cc-user-name">{user.username}</div>
-                      <div className="cc-user-email">{user.email}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="cc-email-search-row">
+              <input
+                className="cc-group-name-input"
+                type="email"
+                placeholder="Enter user email"
+                value={privateEmail}
+                onChange={(e) => {
+                  setPrivateEmail(e.target.value)
+                  setPrivateLookupResult(null)
+                  setPrivateNotFound(false)
+                }}
+                onKeyDown={handlePrivateEmailKeyDown}
+                disabled={submitting}
+              />
+              <button
+                className="cc-search-btn"
+                onClick={handlePrivateEmailSearch}
+                disabled={submitting || privateLookingUp || !privateEmail.trim()}
+              >
+                {privateLookingUp ? '...' : 'Search'}
+              </button>
+            </div>
+
+            {privateNotFound && <div className="cc-not-found">User not found.</div>}
+
+            {privateLookupResult && (
+              <>
+                {renderUserPreview(privateLookupResult)}
+                <button
+                  className="cc-create-btn"
+                  onClick={handleStartPrivateChat}
+                  disabled={submitting}
+                >
+                  {submitting ? 'Starting...' : 'Start Chat'}
+                </button>
+              </>
             )}
           </div>
         )}
@@ -166,32 +225,52 @@ const CreateChatModal = ({ onClose, onRoomCreated }) => {
               type="text"
               placeholder="Group name"
               value={groupName}
-              onChange={(e) => handleGroupNameChange(e.target.value)}
+              onChange={(e) => setGroupName(e.target.value)}
               disabled={submitting}
             />
 
-            {loadingUsers ? (
-              <div className="cc-loading">Loading users...</div>
-            ) : users.length === 0 ? (
-              <div className="cc-empty">No other users found</div>
-            ) : (
+            <div className="cc-email-search-row">
+              <input
+                className="cc-group-name-input"
+                type="email"
+                placeholder="Add member by email"
+                value={groupEmailInput}
+                onChange={(e) => setGroupEmailInput(e.target.value)}
+                onKeyDown={handleGroupEmailKeyDown}
+                disabled={submitting}
+              />
+              <button
+                className="cc-search-btn"
+                onClick={handleAddGroupMember}
+                disabled={submitting || groupLookingUp || !groupEmailInput.trim()}
+              >
+                {groupLookingUp ? '...' : 'Add'}
+              </button>
+            </div>
+
+            {groupMembers.length > 0 && (
               <div className="cc-user-list">
-                {users.map((user) => (
-                  <label key={user.id} className="cc-user-item cc-checkbox-item">
-                    <input
-                      type="checkbox"
-                      checked={selectedMembers.has(user.email)}
-                      onChange={() => toggleMember(user.email)}
-                      disabled={submitting}
-                    />
-                    <div className="cc-user-avatar">
-                      {user.username?.slice(0, 2).toUpperCase() || '??'}
+                {groupMembers.map((member) => (
+                  <div key={member.email} className="cc-user-item">
+                    <div className="cc-user-avatar-img-wrapper">
+                      {member.profileImage ? (
+                        <img src={member.profileImage} alt={member.username} className="cc-user-avatar-img" />
+                      ) : (
+                        <div className="cc-user-avatar">{member.username?.slice(0, 2).toUpperCase() || '??'}</div>
+                      )}
                     </div>
                     <div className="cc-user-info">
-                      <div className="cc-user-name">{user.username}</div>
-                      <div className="cc-user-email">{user.email}</div>
+                      <div className="cc-user-name">{member.username}</div>
+                      <div className="cc-user-email">{member.email}</div>
                     </div>
-                  </label>
+                    <button
+                      className="cc-remove-member-btn"
+                      onClick={() => removeGroupMember(member.email)}
+                      disabled={submitting}
+                    >
+                      ✕
+                    </button>
+                  </div>
                 ))}
               </div>
             )}

@@ -5,7 +5,7 @@ const initialSearchState = { isOpen: false, value: '' }
 
 const ChatHeader = ({
   room, onlineEmails, currentUserEmail, onOpenProfile, onSearch, searching,
-  onDeletePrivateChat, onLeaveGroup, onDeleteGroup,
+  onDeletePrivateChat, onLeaveGroup, onDeleteGroup, onClearChat,
 }) => {
   const [searchState, setSearchState] = useState(initialSearchState)
   const [roomMenuOpen, setRoomMenuOpen] = useState(false)
@@ -51,6 +51,7 @@ const ChatHeader = ({
     if (confirmAction === 'delete-private' && onDeletePrivateChat) onDeletePrivateChat(room.id)
     if (confirmAction === 'leave-group' && onLeaveGroup) onLeaveGroup(room.id)
     if (confirmAction === 'delete-group' && onDeleteGroup) onDeleteGroup(room.id)
+    if (confirmAction === 'clear-chat' && onClearChat) onClearChat(room.id)
     setConfirmAction(null)
   }
 
@@ -69,6 +70,11 @@ const ChatHeader = ({
       title: 'Delete this group?',
       message: 'This will permanently delete the group and all its messages for every member.',
       confirmLabel: 'Delete',
+    },
+    'clear-chat': {
+      title: 'Clear this chat?',
+      message: 'All messages will disappear from your view only. Other participants will still see the full conversation.',
+      confirmLabel: 'Clear',
     },
   }
 
@@ -203,6 +209,12 @@ const ChatHeader = ({
                     Delete Group
                   </button>
                 )}
+                <button
+                  className="room-menu-item"
+                  onClick={() => requestConfirm('clear-chat')}
+                >
+                  Clear Chat
+                </button>
               </div>
             </>
           )}

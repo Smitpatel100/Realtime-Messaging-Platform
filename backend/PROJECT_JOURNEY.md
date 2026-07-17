@@ -731,3 +731,42 @@ http://localhost
 ## Status
 
 Day 23 Completed ✅
+
+# Day 24 – Chat Management & Privacy
+
+## Features Added
+- Delete Private Chat
+- Delete Group (Owner)
+- Leave Group
+- Clear Chat (Only for current user)
+- Delete Message for Me
+- Delete Message for Everyone
+- Email-based Private Chat Creation
+- Email-based Group Member Addition
+
+## Backend
+- Added new APIs for:
+  - Delete for Me
+  - Clear Chat
+  - Email User Lookup
+- Updated MessageService
+- Updated ChatRoomService
+- Updated UserController
+- Updated MessageController
+- Updated repositories
+
+## Frontend
+- Updated CreateChatModal
+- Updated ChatHeader
+- Updated MessageBubble
+- Updated MessageList
+- Updated chatService
+- Added confirmation dialogs
+- Replaced public user list with email search
+
+## Docker
+- Tested all new features with Docker + Nginx reverse proxy.
+
+## Status
+✅ Day 24 Completed
+

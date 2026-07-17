@@ -4,17 +4,23 @@ import com.smit.RealTimeChat.dto.MessageResponse;
 import com.smit.RealTimeChat.dto.SendMessageRequest;
 import com.smit.RealTimeChat.dto.UnreadCountUpdate;
 import com.smit.RealTimeChat.entity.ChatRoom;
+import com.smit.RealTimeChat.entity.DeletedMessage;
 import com.smit.RealTimeChat.entity.Message;
+import com.smit.RealTimeChat.entity.RoomClearState;
 import com.smit.RealTimeChat.entity.User;
 import com.smit.RealTimeChat.exception.UserNotFoundException;
 import com.smit.RealTimeChat.repository.ChatRoomRepository;
+import com.smit.RealTimeChat.repository.DeletedMessageRepository;
 import com.smit.RealTimeChat.repository.MessageRepository;
+import com.smit.RealTimeChat.repository.RoomClearStateRepository;
 import com.smit.RealTimeChat.repository.UserRepository;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 @Service
 public class MessageService {
@@ -23,18 +29,24 @@ public class MessageService {
     private final UserRepository userRepository;
     private final PresenceService presenceService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final DeletedMessageRepository deletedMessageRepository;
+    private final RoomClearStateRepository roomClearStateRepository;
     public MessageService(
             MessageRepository messageRepository,
             ChatRoomRepository chatRoomRepository,
             UserRepository userRepository,
             PresenceService presenceService,
-            SimpMessagingTemplate messagingTemplate
+            SimpMessagingTemplate messagingTemplate,
+            DeletedMessageRepository deletedMessageRepository,
+            RoomClearStateRepository roomClearStateRepository
     ) {
         this.messageRepository = messageRepository;
         this.chatRoomRepository = chatRoomRepository;
         this.userRepository = userRepository;
         this.presenceService = presenceService;
         this.messagingTemplate = messagingTemplate;
+        this.deletedMessageRepository = deletedMessageRepository;
+        this.roomClearStateRepository = roomClearStateRepository;
     }
     @Transactional
     public MessageResponse sendMessage(Long roomId, String senderEmail, SendMessageRequest request) {
@@ -96,7 +108,7 @@ public class MessageService {
         return mapToResponse(saved);
     }
     public List<MessageResponse> getChatHistory(Long roomId, String currentUserEmail) {
-        userRepository.findByEmail(currentUserEmail)
+        User currentUser = userRepository.findByEmail(currentUserEmail)
                 .orElseThrow(() -> new UserNotFoundException("User not found: " + currentUserEmail));
         ChatRoom chatRoom = chatRoomRepository.findById(roomId)
                 .orElseThrow(() -> new RuntimeException("Chat room not found with id: " + roomId));
@@ -106,7 +118,14 @@ public class MessageService {
             throw new RuntimeException("User is not a member of this chat room");
         }
         List<Message> messages = messageRepository.findByChatRoomOrderByCreatedAtAsc(chatRoom);
+        Set<Long> hiddenIds = new HashSet<>(
+                deletedMessageRepository.findMessageIdsByUserAndChatRoom(currentUser, chatRoom));
+        LocalDateTime clearCutoff = roomClearStateRepository.findByUserAndRoom(currentUser, chatRoom)
+                .map(RoomClearState::getClearedAt)
+                .orElse(null);
         return messages.stream()
+                .filter(m -> !hiddenIds.contains(m.getId()))
+                .filter(m -> clearCutoff == null || m.getCreatedAt().isAfter(clearCutoff))
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -170,7 +189,7 @@ public class MessageService {
         return responses;
     }
     public List<MessageResponse> searchMessages(Long roomId, String currentUserEmail, String keyword) {
-        userRepository.findByEmail(currentUserEmail)
+        User currentUser = userRepository.findByEmail(currentUserEmail)
                 .orElseThrow(() -> new UserNotFoundException("User not found: " + currentUserEmail));
         ChatRoom chatRoom = chatRoomRepository.findById(roomId)
                 .orElseThrow(() -> new RuntimeException("Chat room not found with id: " + roomId));
@@ -181,9 +200,53 @@ public class MessageService {
         }
         List<Message> matches = messageRepository
                 .findByChatRoomAndContentContainingIgnoreCaseOrderByCreatedAtAsc(chatRoom, keyword);
+        Set<Long> hiddenIds = new HashSet<>(
+                deletedMessageRepository.findMessageIdsByUserAndChatRoom(currentUser, chatRoom));
+        LocalDateTime clearCutoff = roomClearStateRepository.findByUserAndRoom(currentUser, chatRoom)
+                .map(RoomClearState::getClearedAt)
+                .orElse(null);
         return matches.stream()
+                .filter(m -> !hiddenIds.contains(m.getId()))
+                .filter(m -> clearCutoff == null || m.getCreatedAt().isAfter(clearCutoff))
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
+    }
+    @Transactional
+    public void deleteMessageForMe(Long messageId, String currentUserEmail) {
+        User currentUser = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new UserNotFoundException("User not found: " + currentUserEmail));
+        Message message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new RuntimeException("Message not found with id: " + messageId));
+
+        boolean isMember = message.getChatRoom().getUsers().stream()
+                .anyMatch(user -> user.getEmail().equals(currentUserEmail));
+        if (!isMember) {
+            throw new RuntimeException("You are not a member of this chat room");
+        }
+
+        boolean alreadyDeleted = deletedMessageRepository.findByUserAndMessage(currentUser, message).isPresent();
+        if (!alreadyDeleted) {
+            deletedMessageRepository.save(new DeletedMessage(currentUser, message));
+        }
+    }
+    @Transactional
+    public void clearChat(Long roomId, String currentUserEmail) {
+        User currentUser = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new UserNotFoundException("User not found: " + currentUserEmail));
+        ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new RuntimeException("Chat room not found with id: " + roomId));
+
+        boolean isMember = chatRoom.getUsers().stream()
+                .anyMatch(user -> user.getEmail().equals(currentUserEmail));
+        if (!isMember) {
+            throw new RuntimeException("You are not a member of this chat room");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        RoomClearState state = roomClearStateRepository.findByUserAndRoom(currentUser, chatRoom)
+                .orElse(new RoomClearState(currentUser, chatRoom, now));
+        state.setClearedAt(now);
+        roomClearStateRepository.save(state);
     }
     @Transactional
     public void markPendingMessagesAsDeliveredOnReconnect(String userEmail) {

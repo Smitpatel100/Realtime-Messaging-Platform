@@ -19,9 +19,9 @@ const renderHighlightedText = (text, keyword) => {
   )
 }
 
-const MessageBubble = ({ message, currentUserEmail, highlightKeyword, onDeleteMessage }) => {
+const MessageBubble = ({ message, currentUserEmail, highlightKeyword, onDeleteForMe, onDeleteForEveryone }) => {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [confirmAction, setConfirmAction] = useState(null)
   const isOwn = message.senderEmail === currentUserEmail
 
   const formatTime = (timestamp) => {
@@ -64,10 +64,23 @@ const MessageBubble = ({ message, currentUserEmail, highlightKeyword, onDeleteMe
     )
   }
 
-  const handleConfirmDelete = () => {
-    setConfirmOpen(false)
+  const handleConfirm = () => {
+    const action = confirmAction
+    setConfirmAction(null)
     setMenuOpen(false)
-    if (onDeleteMessage) onDeleteMessage(message.id)
+    if (action === 'for-me' && onDeleteForMe) onDeleteForMe(message.id)
+    if (action === 'for-everyone' && onDeleteForEveryone) onDeleteForEveryone(message.id)
+  }
+
+  const confirmDialogText = {
+    'for-me': {
+      title: 'Delete for you?',
+      message: 'This message will be removed from your view only. Others will still see it.',
+    },
+    'for-everyone': {
+      title: 'Delete for everyone?',
+      message: "This message will be deleted for everyone in this chat. This can't be undone.",
+    },
   }
 
   const isImageAttachment = message.fileType?.startsWith('image/')
@@ -109,33 +122,42 @@ const MessageBubble = ({ message, currentUserEmail, highlightKeyword, onDeleteMe
           )}
         </div>
 
-        {isOwn && (
-          <div className="message-menu-wrapper">
-            <button
-              className="message-menu-btn"
-              onClick={() => setMenuOpen((prev) => !prev)}
-              title="Message options"
-            >
-              ⋮
-            </button>
-            {menuOpen && (
-              <>
-                <div className="message-menu-backdrop" onClick={() => setMenuOpen(false)} />
-                <div className="message-menu-dropdown">
+        <div className="message-menu-wrapper">
+          <button
+            className="message-menu-btn"
+            onClick={() => setMenuOpen((prev) => !prev)}
+            title="Message options"
+          >
+            ⋮
+          </button>
+          {menuOpen && (
+            <>
+              <div className="message-menu-backdrop" onClick={() => setMenuOpen(false)} />
+              <div className="message-menu-dropdown">
+                <button
+                  className="message-menu-item"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    setConfirmAction('for-me')
+                  }}
+                >
+                  Delete For Me
+                </button>
+                {isOwn && (
                   <button
                     className="message-menu-item danger"
                     onClick={() => {
                       setMenuOpen(false)
-                      setConfirmOpen(true)
+                      setConfirmAction('for-everyone')
                     }}
                   >
-                    Delete
+                    Delete For Everyone
                   </button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
+                )}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="message-time">
@@ -143,14 +165,14 @@ const MessageBubble = ({ message, currentUserEmail, highlightKeyword, onDeleteMe
         {renderTicks()}
       </div>
 
-      {confirmOpen && (
+      {confirmAction && (
         <ConfirmDialog
-          title="Delete message?"
-          message="This message will be deleted for everyone in this chat. This can't be undone."
+          title={confirmDialogText[confirmAction].title}
+          message={confirmDialogText[confirmAction].message}
           confirmLabel="Delete"
           danger
-          onConfirm={handleConfirmDelete}
-          onCancel={() => setConfirmOpen(false)}
+          onConfirm={handleConfirm}
+          onCancel={() => setConfirmAction(null)}
         />
       )}
     </div>

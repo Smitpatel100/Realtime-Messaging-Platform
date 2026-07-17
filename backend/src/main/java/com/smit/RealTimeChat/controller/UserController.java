@@ -64,6 +64,15 @@ public class UserController {
         PublicProfileResponse response = userService.getPublicProfile(email);
         return ResponseEntity.ok(response);
     }
+    @GetMapping("/email/{email}")
+    public ResponseEntity<?> lookupByEmail(@PathVariable String email) {
+        try {
+            PublicProfileResponse response = userService.getPublicProfile(email);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "User not found."));
+        }
+    }
     @PostMapping(value = "/profile/image", consumes = "multipart/form-data")
     public ResponseEntity<?> uploadProfileImage(
             @RequestParam("file") MultipartFile file,

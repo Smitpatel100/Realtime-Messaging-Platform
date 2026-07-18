@@ -14,8 +14,8 @@ const presenceService = {
     const token = localStorage.getItem('token')
 
     stompClient = new Client({
-      webSocketFactory: () => new SockJS('http://localhost:8080/ws'),
-
+    webSocketFactory: () =>
+      new SockJS(`${import.meta.env.VITE_API_URL}/ws`),
       connectHeaders: {
         Authorization: token ? `Bearer ${token}` : '',
       },

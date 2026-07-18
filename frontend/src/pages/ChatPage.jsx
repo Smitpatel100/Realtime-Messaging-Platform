@@ -112,24 +112,44 @@ const ChatPage = () => {
     }
 
     roomEventService.connect((event) => {
-      if (event.type === 'PRIVATE_DELETED' || event.type === 'GROUP_DELETED') {
-        setRooms((prev) => prev.filter((r) => r.id !== event.roomId))
-        setUnreadCounts((prev) => {
-          const next = { ...prev }
-          delete next[event.roomId]
-          return next
-        })
-        if (selectedRoomRef.current?.id === event.roomId) {
-          websocketService.disconnect()
-          typingService.unsubscribe()
-          setSelectedRoom(null)
-          selectedRoomRef.current = null
-          setMessages([])
-        }
-      } else if (event.type === 'MEMBER_LEFT') {
-        chatService.getRooms().then((res) => setRooms(res.data)).catch(() => {})
-      }
+
+  if (
+    event.type === 'PRIVATE_CREATED' ||
+    event.type === 'GROUP_CREATED'
+  ) {
+    chatService.getRooms()
+      .then((res) => setRooms(res.data))
+      .catch(() => {})
+  }
+
+  else if (
+    event.type === 'PRIVATE_DELETED' ||
+    event.type === 'GROUP_DELETED'
+  ) {
+    setRooms((prev) => prev.filter((r) => r.id !== event.roomId))
+
+    setUnreadCounts((prev) => {
+      const next = { ...prev }
+      delete next[event.roomId]
+      return next
     })
+
+    if (selectedRoomRef.current?.id === event.roomId) {
+      websocketService.disconnect()
+      typingService.unsubscribe()
+      setSelectedRoom(null)
+      selectedRoomRef.current = null
+      setMessages([])
+    }
+  }
+
+  else if (event.type === 'MEMBER_LEFT') {
+    chatService.getRooms()
+      .then((res) => setRooms(res.data))
+      .catch(() => {})
+  }
+
+})
 
     return () => {
       websocketService.disconnect()

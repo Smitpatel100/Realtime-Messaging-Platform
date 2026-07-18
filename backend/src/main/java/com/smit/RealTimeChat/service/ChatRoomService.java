@@ -66,7 +66,17 @@ public class ChatRoomService {
         room.getUsers().add(targetUser);
 
         ChatRoom saved = chatRoomRepository.save(room);
-        return mapToResponse(saved);
+
+        messagingTemplate.convertAndSend(
+         "/topic/room-events",
+         new RoomEvent(
+                "PRIVATE_CREATED",
+                saved.getId(),
+                currentUserEmail
+        )
+       );
+
+      return mapToResponse(saved);
     }
 
     @Transactional
@@ -86,7 +96,17 @@ public class ChatRoomService {
         }
 
         ChatRoom saved = chatRoomRepository.save(room);
-        return mapToResponse(saved);
+
+      messagingTemplate.convertAndSend(
+         "/topic/room-events",
+         new RoomEvent(
+                "GROUP_CREATED",
+                saved.getId(),
+                currentUserEmail
+         )
+     );
+
+      return mapToResponse(saved);
     }
 
     @Transactional

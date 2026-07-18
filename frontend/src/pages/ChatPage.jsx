@@ -34,6 +34,7 @@ const ChatPage = () => {
   const [searchResults, setSearchResults] = useState([])
   const [isSearching, setIsSearching] = useState(false)
   const [unreadCounts, setUnreadCounts] = useState({})
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const selectedRoomRef = useRef(null)
   const currentUserRef = useRef(null)
@@ -380,16 +381,18 @@ const ChatPage = () => {
 
   return (
     <div className="chat-layout">
-      <Sidebar
-        user={currentUser}
-        rooms={rooms}
-        selectedRoom={selectedRoom}
-        onSelectRoom={handleSelectRoom}
-        onLogout={handleLogout}
-        onlineEmails={onlineEmails}
-        onOpenCreateChat={() => setIsCreateChatOpen(true)}
-        unreadCounts={unreadCounts}
-      />
+     <Sidebar
+  user={currentUser}
+  rooms={rooms}
+  selectedRoom={selectedRoom}
+  onSelectRoom={handleSelectRoom}
+  onLogout={handleLogout}
+  onlineEmails={onlineEmails}
+  onOpenCreateChat={() => setIsCreateChatOpen(true)}
+  unreadCounts={unreadCounts}
+  sidebarOpen={sidebarOpen}
+  setSidebarOpen={setSidebarOpen}
+/>
 
       <div className="chat-main">
         {!selectedRoom ? (
@@ -399,7 +402,8 @@ const ChatPage = () => {
           </div>
         ) : (
           <>
-            <ChatHeader
+           <ChatHeader
+              setSidebarOpen={setSidebarOpen}
               key={selectedRoom.id}
               room={selectedRoom}
               onlineEmails={onlineEmails}

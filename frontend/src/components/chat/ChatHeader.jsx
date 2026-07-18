@@ -4,8 +4,17 @@ import ConfirmDialog from './ConfirmDialog'
 const initialSearchState = { isOpen: false, value: '' }
 
 const ChatHeader = ({
-  room, onlineEmails, currentUserEmail, onOpenProfile, onSearch, searching,
-  onDeletePrivateChat, onLeaveGroup, onDeleteGroup, onClearChat,
+  room,
+  onlineEmails,
+  currentUserEmail,
+  onOpenProfile,
+  onSearch,
+  searching,
+  onDeletePrivateChat,
+  onLeaveGroup,
+  onDeleteGroup,
+  onClearChat,
+  setSidebarOpen,
 }) => {
   const [searchState, setSearchState] = useState(initialSearchState)
   const [roomMenuOpen, setRoomMenuOpen] = useState(false)
@@ -122,6 +131,15 @@ const ChatHeader = ({
       onClick={handleHeaderClick}
       title={clickable ? 'View profile' : undefined}
     >
+  <button
+     className="mobile-menu-btn"
+    onClick={(e) => {
+     e.stopPropagation()
+     setSidebarOpen(true)
+    }}
+   >
+     ☰
+   </button>
       <div className="room-icon-wrapper">
         <div className={`chat-header-icon ${room.type === 'PRIVATE' ? 'private' : ''}`}>
           {room.type === 'PRIVATE' ? '👤' : '👥'}

@@ -15,6 +15,7 @@ import com.smit.RealTimeChat.security.JwtService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.beans.factory.annotation.Value;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,7 +30,8 @@ public class UserService {
     private final JwtService jwtService;
 
     private static final String UPLOAD_DIR = "uploads";
-    private static final String PUBLIC_BASE_URL = "http://localhost:8080/uploads/";
+    @Value("${app.public-base-url}")
+    private String publicBaseUrl;
     private static final long MAX_FILE_SIZE_BYTES = 5L * 1024 * 1024; // 5MB
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of("image/jpeg", "image/png", "image/webp", "image/gif");
 
@@ -142,7 +144,7 @@ public class UserService {
         Path targetPath = Paths.get(UPLOAD_DIR, filename);
         Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
 
-        user.setProfileImage(PUBLIC_BASE_URL + filename);
+        user.setProfileImage(publicBaseUrl + "/uploads/" + filename);
         User saved = userRepository.save(user);
         return mapToProfileResponse(saved);
     }

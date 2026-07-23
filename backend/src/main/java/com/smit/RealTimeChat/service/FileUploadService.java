@@ -2,6 +2,7 @@ package com.smit.RealTimeChat.service;
 import com.smit.RealTimeChat.dto.FileUploadResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.beans.factory.annotation.Value;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,7 +15,8 @@ import java.util.UUID;
 public class FileUploadService {
 
     private static final String UPLOAD_DIR = "uploads";
-    private static final String PUBLIC_BASE_URL = "http://localhost:8080/uploads/";
+    @Value("${app.public-base-url}")
+    private String publicBaseUrl;
     private static final long MAX_FILE_SIZE_BYTES = 10L * 1024 * 1024; // 10MB
 
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
@@ -51,8 +53,7 @@ public class FileUploadService {
         Path targetPath = Paths.get(UPLOAD_DIR, storedFileName);
         Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
 
-        String fileUrl = PUBLIC_BASE_URL + storedFileName;
-
+        String fileUrl = publicBaseUrl + "/uploads/" + storedFileName;
         return new FileUploadResponse(originalName, fileUrl, contentType);
     }
 }

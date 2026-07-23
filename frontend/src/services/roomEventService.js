@@ -13,8 +13,8 @@ const roomEventService = {
     const token = localStorage.getItem('token')
 
     stompClient = new Client({
-      webSocketFactory: () => new SockJS('/ws'),
-
+     webSocketFactory: () =>
+      new SockJS(`${import.meta.env.VITE_API_URL}/ws`),
       connectHeaders: {
         Authorization: token ? `Bearer ${token}` : '',
       },

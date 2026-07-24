@@ -16,6 +16,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.smit.RealTimeChat.repository.RoomClearStateRepository;
+import com.smit.RealTimeChat.repository.DeletedMessageRepository;
 
 import java.util.List;
 import java.util.Optional;
@@ -27,17 +28,21 @@ public class ChatRoomService {
 	private final ChatRoomRepository chatRoomRepository;
 	private final UserRepository userRepository;
 	private final MessageRepository messageRepository;
+	private final DeletedMessageRepository deletedMessageRepository;
 	private final RoomClearStateRepository roomClearStateRepository;
 	private final SimpMessagingTemplate messagingTemplate;
 
 	public ChatRoomService(ChatRoomRepository chatRoomRepository, UserRepository userRepository,
-			MessageRepository messageRepository, RoomClearStateRepository roomClearStateRepository,
+			MessageRepository messageRepository,
+			DeletedMessageRepository deletedMessageRepository,
+			RoomClearStateRepository roomClearStateRepository,
 			SimpMessagingTemplate messagingTemplate) {
 		this.chatRoomRepository = chatRoomRepository;
 		this.userRepository = userRepository;
 		this.messageRepository = messageRepository;
 		this.messagingTemplate = messagingTemplate;
 		this.roomClearStateRepository = roomClearStateRepository;
+		this.deletedMessageRepository = deletedMessageRepository;
 	}
 
 	@Transactional
@@ -139,6 +144,8 @@ public class ChatRoomService {
 		Long deletedRoomId = room.getId();
 		roomClearStateRepository.deleteByRoom(room);
 
+		deletedMessageRepository.deleteByMessageChatRoom(room);
+
 		messageRepository.deleteByChatRoom(room);
 
 		room.getUsers().clear();
@@ -202,6 +209,9 @@ public class ChatRoomService {
 
 		Long deletedRoomId = room.getId();
 		roomClearStateRepository.deleteByRoom(room);
+
+		deletedMessageRepository.deleteByMessageChatRoom(room);
+
 		messageRepository.deleteByChatRoom(room);
 		room.getUsers().clear();
 		chatRoomRepository.delete(room);

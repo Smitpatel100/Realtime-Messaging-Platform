@@ -15,4 +15,5 @@ public interface DeletedMessageRepository extends JpaRepository<DeletedMessage, 
 
     @Query("SELECT dm.message.id FROM DeletedMessage dm WHERE dm.user = :user AND dm.message.chatRoom = :room")
     List<Long> findMessageIdsByUserAndChatRoom(@Param("user") User user, @Param("room") ChatRoom room);
+    void deleteByMessageChatRoom(ChatRoom room);
 }

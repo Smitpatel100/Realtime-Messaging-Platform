@@ -30,11 +30,16 @@ const ChatHeader = ({
 
   if (!room) return null
 
-  const isOnline = () => {
-    if (room.type !== 'PRIVATE') return false
-    if (!room.memberEmails || !onlineEmails) return false
-    return room.memberEmails.some((email) => onlineEmails.has(email))
-  }
+const isOnline = () => {
+  if (room.type !== 'PRIVATE') return false
+  if (!room.memberEmails || !onlineEmails) return false
+
+  const otherUser = room.memberEmails.find(
+    (email) => email !== currentUserEmail
+  )
+
+  return otherUser ? onlineEmails.has(otherUser) : false
+}
 
   const getOtherEmail = () => {
     if (room.type !== 'PRIVATE' || !room.memberEmails) return null

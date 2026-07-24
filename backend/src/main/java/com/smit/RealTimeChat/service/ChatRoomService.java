@@ -156,9 +156,10 @@ public class ChatRoomService {
         }
 
         Long deletedRoomId = room.getId();
-        messageRepository.deleteByChatRoom(room);
-        room.getUsers().clear();
-        chatRoomRepository.delete(room);
+       messageRepository.deleteByChatRoom(room);
+       room.getUsers().clear();
+       chatRoomRepository.save(room);
+       chatRoomRepository.delete(room);
 
         messagingTemplate.convertAndSend("/topic/room-events",
                 new RoomEvent("PRIVATE_DELETED", deletedRoomId, currentUserEmail));

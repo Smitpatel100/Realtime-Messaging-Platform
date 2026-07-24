@@ -15,6 +15,7 @@ import com.smit.RealTimeChat.repository.UserRepository;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.smit.RealTimeChat.repository.RoomClearStateRepository;
 
 import java.util.List;
 import java.util.Optional;
@@ -23,222 +24,197 @@ import java.util.stream.Collectors;
 @Service
 public class ChatRoomService {
 
-    private final ChatRoomRepository chatRoomRepository;
-    private final UserRepository userRepository;
-    private final MessageRepository messageRepository;
-    private final SimpMessagingTemplate messagingTemplate;
+	private final ChatRoomRepository chatRoomRepository;
+	private final UserRepository userRepository;
+	private final MessageRepository messageRepository;
+	private final RoomClearStateRepository roomClearStateRepository;
+	private final SimpMessagingTemplate messagingTemplate;
 
-    public ChatRoomService(
-            ChatRoomRepository chatRoomRepository,
-            UserRepository userRepository,
-            MessageRepository messageRepository,
-            SimpMessagingTemplate messagingTemplate
-    ) {
-        this.chatRoomRepository = chatRoomRepository;
-        this.userRepository = userRepository;
-        this.messageRepository = messageRepository;
-        this.messagingTemplate = messagingTemplate;
-    }
+	public ChatRoomService(ChatRoomRepository chatRoomRepository, UserRepository userRepository,
+			MessageRepository messageRepository, RoomClearStateRepository roomClearStateRepository,
+			SimpMessagingTemplate messagingTemplate) {
+		this.chatRoomRepository = chatRoomRepository;
+		this.userRepository = userRepository;
+		this.messageRepository = messageRepository;
+		this.messagingTemplate = messagingTemplate;
+		this.roomClearStateRepository = roomClearStateRepository;
+	}
 
-    @Transactional
-    public ChatRoomResponse createPrivateChat(String currentUserEmail, CreatePrivateChatRequest request) {
+	@Transactional
+	public ChatRoomResponse createPrivateChat(String currentUserEmail, CreatePrivateChatRequest request) {
 
-        User currentUser = userRepository.findByEmail(currentUserEmail)
-                .orElseThrow(() -> new UserNotFoundException("User not found: " + currentUserEmail));
+		User currentUser = userRepository.findByEmail(currentUserEmail)
+				.orElseThrow(() -> new UserNotFoundException("User not found: " + currentUserEmail));
 
-        User targetUser = userRepository.findByEmail(request.getTargetEmail())
-                .orElseThrow(() -> new UserNotFoundException("User not found: " + request.getTargetEmail()));
+		User targetUser = userRepository.findByEmail(request.getTargetEmail())
+				.orElseThrow(() -> new UserNotFoundException("User not found: " + request.getTargetEmail()));
 
-        Optional<ChatRoom> existingRoom = chatRoomRepository.findPrivateRoomBetweenUsers(
-                ChatType.PRIVATE, currentUser, targetUser
-        );
+		Optional<ChatRoom> existingRoom = chatRoomRepository.findPrivateRoomBetweenUsers(ChatType.PRIVATE, currentUser,
+				targetUser);
 
-        if (existingRoom.isPresent()) {
-            return mapToResponse(existingRoom.get());
-        }
+		if (existingRoom.isPresent()) {
+			return mapToResponse(existingRoom.get());
+		}
 
-        ChatRoom room = new ChatRoom(
-                currentUser.getUsername() + " & " + targetUser.getUsername(),
-                ChatType.PRIVATE
-        );
+		ChatRoom room = new ChatRoom(currentUser.getUsername() + " & " + targetUser.getUsername(), ChatType.PRIVATE);
 
-        room.getUsers().add(currentUser);
-        room.getUsers().add(targetUser);
+		room.getUsers().add(currentUser);
+		room.getUsers().add(targetUser);
 
-        ChatRoom saved = chatRoomRepository.save(room);
+		ChatRoom saved = chatRoomRepository.save(room);
 
-        messagingTemplate.convertAndSend(
-         "/topic/room-events",
-         new RoomEvent(
-                "PRIVATE_CREATED",
-                saved.getId(),
-                currentUserEmail
-        )
-       );
+		messagingTemplate.convertAndSend("/topic/room-events",
+				new RoomEvent("PRIVATE_CREATED", saved.getId(), currentUserEmail));
 
-      return mapToResponse(saved);
-    }
+		return mapToResponse(saved);
+	}
 
-    @Transactional
-    public ChatRoomResponse createGroupChat(String currentUserEmail, CreateGroupChatRequest request) {
+	@Transactional
+	public ChatRoomResponse createGroupChat(String currentUserEmail, CreateGroupChatRequest request) {
 
-        User currentUser = userRepository.findByEmail(currentUserEmail)
-                .orElseThrow(() -> new UserNotFoundException("User not found: " + currentUserEmail));
+		User currentUser = userRepository.findByEmail(currentUserEmail)
+				.orElseThrow(() -> new UserNotFoundException("User not found: " + currentUserEmail));
 
-        ChatRoom room = new ChatRoom(request.getName(), ChatType.GROUP);
-        room.setCreatedBy(currentUser);
-        room.getUsers().add(currentUser);
+		ChatRoom room = new ChatRoom(request.getName(), ChatType.GROUP);
+		room.setCreatedBy(currentUser);
+		room.getUsers().add(currentUser);
 
-        for (String email : request.getMemberEmails()) {
-            User member = userRepository.findByEmail(email)
-                    .orElseThrow(() -> new UserNotFoundException("User not found: " + email));
-            room.getUsers().add(member);
-        }
+		for (String email : request.getMemberEmails()) {
+			User member = userRepository.findByEmail(email)
+					.orElseThrow(() -> new UserNotFoundException("User not found: " + email));
+			room.getUsers().add(member);
+		}
 
-        ChatRoom saved = chatRoomRepository.save(room);
+		ChatRoom saved = chatRoomRepository.save(room);
 
-      messagingTemplate.convertAndSend(
-         "/topic/room-events",
-         new RoomEvent(
-                "GROUP_CREATED",
-                saved.getId(),
-                currentUserEmail
-         )
-     );
+		messagingTemplate.convertAndSend("/topic/room-events",
+				new RoomEvent("GROUP_CREATED", saved.getId(), currentUserEmail));
 
-      return mapToResponse(saved);
-    }
+		return mapToResponse(saved);
+	}
 
-    @Transactional
-    public ChatRoomResponse addMember(Long roomId, AddMemberRequest request) {
+	@Transactional
+	public ChatRoomResponse addMember(Long roomId, AddMemberRequest request) {
 
-        ChatRoom room = chatRoomRepository.findById(roomId)
-                .orElseThrow(() -> new RuntimeException("Chat room not found with id: " + roomId));
+		ChatRoom room = chatRoomRepository.findById(roomId)
+				.orElseThrow(() -> new RuntimeException("Chat room not found with id: " + roomId));
 
-        if (room.getType() != ChatType.GROUP) {
-            throw new RuntimeException("Members can only be added to GROUP chat rooms");
-        }
+		if (room.getType() != ChatType.GROUP) {
+			throw new RuntimeException("Members can only be added to GROUP chat rooms");
+		}
 
-        User newMember = userRepository.findByEmail(request.getMemberEmail())
-                .orElseThrow(() -> new UserNotFoundException("User not found: " + request.getMemberEmail()));
+		User newMember = userRepository.findByEmail(request.getMemberEmail())
+				.orElseThrow(() -> new UserNotFoundException("User not found: " + request.getMemberEmail()));
 
-        room.getUsers().add(newMember);
+		room.getUsers().add(newMember);
 
-        ChatRoom saved = chatRoomRepository.save(room);
-        return mapToResponse(saved);
-    }
+		ChatRoom saved = chatRoomRepository.save(room);
+		return mapToResponse(saved);
+	}
 
-    public List<ChatRoomResponse> getUserChatRooms(String currentUserEmail) {
+	public List<ChatRoomResponse> getUserChatRooms(String currentUserEmail) {
 
-        User currentUser = userRepository.findByEmail(currentUserEmail)
-                .orElseThrow(() -> new UserNotFoundException("User not found: " + currentUserEmail));
+		User currentUser = userRepository.findByEmail(currentUserEmail)
+				.orElseThrow(() -> new UserNotFoundException("User not found: " + currentUserEmail));
 
-        List<ChatRoom> rooms = chatRoomRepository.findByUsersContaining(currentUser);
+		List<ChatRoom> rooms = chatRoomRepository.findByUsersContaining(currentUser);
 
-        return rooms.stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
-    }
+		return rooms.stream().map(this::mapToResponse).collect(Collectors.toList());
+	}
 
-    @Transactional
-    public void deletePrivateChat(Long roomId, String currentUserEmail) {
-        ChatRoom room = chatRoomRepository.findById(roomId)
-                .orElseThrow(() -> new RuntimeException("Chat room not found with id: " + roomId));
+	@Transactional
+	public void deletePrivateChat(Long roomId, String currentUserEmail) {
+		ChatRoom room = chatRoomRepository.findById(roomId)
+				.orElseThrow(() -> new RuntimeException("Chat room not found with id: " + roomId));
 
-        if (room.getType() != ChatType.PRIVATE) {
-            throw new RuntimeException("This endpoint only deletes PRIVATE chat rooms");
-        }
+		if (room.getType() != ChatType.PRIVATE) {
+			throw new RuntimeException("This endpoint only deletes PRIVATE chat rooms");
+		}
 
-        boolean isParticipant = room.getUsers().stream()
-                .anyMatch(user -> user.getEmail().equals(currentUserEmail));
-        if (!isParticipant) {
-            throw new RuntimeException("Only participants can delete this chat");
-        }
+		boolean isParticipant = room.getUsers().stream().anyMatch(user -> user.getEmail().equals(currentUserEmail));
+		if (!isParticipant) {
+			throw new RuntimeException("Only participants can delete this chat");
+		}
 
-        Long deletedRoomId = room.getId();
-       messageRepository.deleteByChatRoom(room);
-       room.getUsers().clear();
-       chatRoomRepository.save(room);
-       chatRoomRepository.delete(room);
+		Long deletedRoomId = room.getId();
+		roomClearStateRepository.deleteByRoom(room);
 
-        messagingTemplate.convertAndSend("/topic/room-events",
-                new RoomEvent("PRIVATE_DELETED", deletedRoomId, currentUserEmail));
-    }
+		messageRepository.deleteByChatRoom(room);
 
-    @Transactional
-    public void leaveGroup(Long roomId, String currentUserEmail) {
-        ChatRoom room = chatRoomRepository.findById(roomId)
-                .orElseThrow(() -> new RuntimeException("Chat room not found with id: " + roomId));
+		room.getUsers().clear();
 
-        if (room.getType() != ChatType.GROUP) {
-            throw new RuntimeException("This endpoint only applies to GROUP chat rooms");
-        }
+		chatRoomRepository.save(room);
 
-        User leavingUser = userRepository.findByEmail(currentUserEmail)
-                .orElseThrow(() -> new UserNotFoundException("User not found: " + currentUserEmail));
+		chatRoomRepository.delete(room);
 
-        boolean isMember = room.getUsers().stream()
-                .anyMatch(user -> user.getEmail().equals(currentUserEmail));
-        if (!isMember) {
-            throw new RuntimeException("You are not a member of this group");
-        }
+		messagingTemplate.convertAndSend("/topic/room-events",
+				new RoomEvent("PRIVATE_DELETED", deletedRoomId, currentUserEmail));
+	}
 
-        room.getUsers().remove(leavingUser);
+	@Transactional
+	public void leaveGroup(Long roomId, String currentUserEmail) {
+		ChatRoom room = chatRoomRepository.findById(roomId)
+				.orElseThrow(() -> new RuntimeException("Chat room not found with id: " + roomId));
 
-        if (room.getUsers().isEmpty()) {
-            Long deletedRoomId = room.getId();
-            messageRepository.deleteByChatRoom(room);
-            chatRoomRepository.delete(room);
-            messagingTemplate.convertAndSend("/topic/room-events",
-                    new RoomEvent("GROUP_DELETED", deletedRoomId, currentUserEmail));
-            return;
-        }
+		if (room.getType() != ChatType.GROUP) {
+			throw new RuntimeException("This endpoint only applies to GROUP chat rooms");
+		}
 
-        // If the creator left, hand off admin rights to no one automatically —
-        // the group simply becomes creator-less; deletion then requires a new
-        // explicit assignment flow (not in scope here).
-        chatRoomRepository.save(room);
+		User leavingUser = userRepository.findByEmail(currentUserEmail)
+				.orElseThrow(() -> new UserNotFoundException("User not found: " + currentUserEmail));
 
-        messagingTemplate.convertAndSend("/topic/room-events",
-                new RoomEvent("MEMBER_LEFT", roomId, currentUserEmail));
-    }
+		boolean isMember = room.getUsers().stream().anyMatch(user -> user.getEmail().equals(currentUserEmail));
+		if (!isMember) {
+			throw new RuntimeException("You are not a member of this group");
+		}
 
-    @Transactional
-    public void deleteGroup(Long roomId, String currentUserEmail) {
-        ChatRoom room = chatRoomRepository.findById(roomId)
-                .orElseThrow(() -> new RuntimeException("Chat room not found with id: " + roomId));
+		room.getUsers().remove(leavingUser);
 
-        if (room.getType() != ChatType.GROUP) {
-            throw new RuntimeException("This endpoint only deletes GROUP chat rooms");
-        }
+		if (room.getUsers().isEmpty()) {
+			Long deletedRoomId = room.getId();
+			messageRepository.deleteByChatRoom(room);
+			chatRoomRepository.delete(room);
+			messagingTemplate.convertAndSend("/topic/room-events",
+					new RoomEvent("GROUP_DELETED", deletedRoomId, currentUserEmail));
+			return;
+		}
 
-        if (room.getCreatedBy() == null || !room.getCreatedBy().getEmail().equals(currentUserEmail)) {
-            throw new RuntimeException("Only the group creator can delete this group");
-        }
+		// If the creator left, hand off admin rights to no one automatically —
+		// the group simply becomes creator-less; deletion then requires a new
+		// explicit assignment flow (not in scope here).
+		chatRoomRepository.save(room);
 
-        Long deletedRoomId = room.getId();
-        messageRepository.deleteByChatRoom(room);
-        room.getUsers().clear();
-        chatRoomRepository.delete(room);
+		messagingTemplate.convertAndSend("/topic/room-events", new RoomEvent("MEMBER_LEFT", roomId, currentUserEmail));
+	}
 
-        messagingTemplate.convertAndSend("/topic/room-events",
-                new RoomEvent("GROUP_DELETED", deletedRoomId, currentUserEmail));
-    }
+	@Transactional
+	public void deleteGroup(Long roomId, String currentUserEmail) {
+		ChatRoom room = chatRoomRepository.findById(roomId)
+				.orElseThrow(() -> new RuntimeException("Chat room not found with id: " + roomId));
 
-    private ChatRoomResponse mapToResponse(ChatRoom room) {
+		if (room.getType() != ChatType.GROUP) {
+			throw new RuntimeException("This endpoint only deletes GROUP chat rooms");
+		}
 
-        List<String> memberEmails = room.getUsers()
-                .stream()
-                .map(User::getEmail)
-                .collect(Collectors.toList());
+		if (room.getCreatedBy() == null || !room.getCreatedBy().getEmail().equals(currentUserEmail)) {
+			throw new RuntimeException("Only the group creator can delete this group");
+		}
 
-        return new ChatRoomResponse(
-                room.getId(),
-                room.getName(),
-                room.getType(),
-                room.getCreatedAt(),
-                memberEmails,
-                room.getCreatedBy() != null ? room.getCreatedBy().getEmail() : null
-        );
-    }
+		Long deletedRoomId = room.getId();
+		roomClearStateRepository.deleteByRoom(room);
+		messageRepository.deleteByChatRoom(room);
+		room.getUsers().clear();
+		chatRoomRepository.delete(room);
+
+		messagingTemplate.convertAndSend("/topic/room-events",
+				new RoomEvent("GROUP_DELETED", deletedRoomId, currentUserEmail));
+	}
+
+	private ChatRoomResponse mapToResponse(ChatRoom room) {
+
+		List<String> memberEmails = room.getUsers().stream().map(User::getEmail).collect(Collectors.toList());
+
+		return new ChatRoomResponse(room.getId(), room.getName(), room.getType(), room.getCreatedAt(), memberEmails,
+				room.getCreatedBy() != null ? room.getCreatedBy().getEmail() : null);
+	}
 }
